@@ -1,0 +1,46 @@
+name: Unzip GBOXIOSVIP Organizado
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP safely and flatten to root
+        run: |
+          ZIP_FILE="GBOXIOSVIP-verdvisual-app-organizado.zip"
+          if [ -f "$ZIP_FILE" ]; then
+            echo "A extrair $ZIP_FILE com suporte a codificação..."
+            mkdir -p temp_extract
+            # Tenta extrair forçando a codificação CP850/UTF-8 para evitar erros de caracteres
+            unzip -O CP850 -o "$ZIP_FILE" -d temp_extract/ || unzip -o "$ZIP_FILE" -d temp_extract/
+            rm -f "$ZIP_FILE"
+
+            # Se os ficheiros vieram dentro de uma pasta intermédia, move tudo para a raiz
+            if [ $(ls -1 temp_extract | wc -l) -eq 1 ] && [ -d temp_extract/* ]; then
+              echo "Movendo ficheiros da subpasta para a raiz..."
+              cp -r temp_extract/*/* ./ 2>/dev/null || cp -r temp_extract/*/. ./ 2>/dev/null || true
+            else
+              echo "Movendo ficheiros diretamente para a raiz..."
+              cp -r temp_extract/* ./ 2>/dev/null || true
+            fi
+            
+            rm -rf temp_extract/
+          else
+            echo "Erro: $ZIP_FILE não encontrado na raiz!"
+            exit 1
+          fi
+
+      - name: Commit extracted files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-extrair e organizar GBOXIOSVIP-verdvisual-app-organizado.zip na raiz"
+          branch: ${{ github.ref_name }}
+          skip_ci: true
